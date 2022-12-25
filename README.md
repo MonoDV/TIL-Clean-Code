@@ -68,13 +68,14 @@
         -   XYZControllerForEfficientStorageOfStrings
         -   XYZControllerForEfficientHandlingOfStrings
 -   의미있게 구분하라
-    -   컴파일을 통과하기 위해 명명하는 경우 ex) klass...
+    -   컴파일을 통과하기 위해 명명하는 경우
+        -   klass :x:
     -   불용어를 붙이는 경우
         -   a1, a2, a3, ... :x:
         -   Product클래스 작성 후 ProductInfo, ProductData :x: -> Info, Data는 아무 의미도 제공하지 못함
-        -   getAccount(), getAccounts(), getAccountList() :x: -> 어떤 메서드를 호출해야 할 지 모름
+        -   getAccount(), getAccounts(), getAccountList() :x: -> 세 가지 메서드가 모두 제공되면 어떤 메서드를 호출해야 할 지 혼란스러움
 -   발음하기 쉬운 이름을 사용하라
-    -   genymdhms(generate date, year, monthj, day, hour, minute, second) :x:
+    -   genymdhms(generate date, year, month, day, hour, minute, second) :x:
     -   generationTimestamp :white_check_mark:
 -   검색하기 쉬운 이름을 사용하라
     -   grep으로 찾기 쉽도록 숫자 등을 상수로 명명
@@ -83,7 +84,7 @@
     -   접두어를 사용하는 것
         -   멤버 변수 앞에 `m_`으로 시작하는 접두어 사용 :x:
         -   인터페이스 이름 앞에 "I"로 시작하는 접두어 사용 -> 필자는 추천하지 않음
-            -   인코딩이 필요하다고 생각되는 경우 차라리 구현체에 "Imp" 접미사를 붙이는 선호
+            -   인코딩이 필요하다고 생각되는 경우 차라리 구현체에 "Imp" 접미사를 붙이는 것을 선호
 -   자신의 기억력을 시험하지 마라
     -   LOS라는 이름이 Line of sight를 의미한다는 것을 알고 있다고 줄여쓰지 마라
     -   모두가 이해할 수 있도록 명료하게
@@ -125,7 +126,7 @@
 
 ## 3장. 함수
 
-함수를 잘 만드는 방법
+함수를 잘 만드는 방법.
 
 ### 핵심 요약
 
@@ -191,6 +192,8 @@
 
 ## 4장. 주석
 
+주석은 필요할까?
+
 ### 핵심 요약
 
 -   주석 없이 잘 읽히는 코드가 이상적인 코드다
@@ -244,18 +247,16 @@
             -   너무 당연한 사실을 굳이 언급하지 마라 ex) // 기본생성자
         -   함수나 변수로 표현할 수 있다면 주석을 달지 마라
             -   주석을 달고 코드를 작성 :x:
-                ````Java
+                ```Java
                  // 전역 목록 <smodule>에 속하는 모듈이 우리가 속한 하위 시스템에 의존하는가?
                  if (smodule.getDependSubsystems().contains(subSysMod.getSubSystem()))
-                 ```
-                ````
+                ```
             -   주석이 필요하지 않도록 코드를 개선 :white_check_mark:
-                ````Java
+                ```Java
                  ArrayList moduleDependees = smodule.getDependSubsystems();
                  String ourSubSystem = subSysMod.getSubSystem();
                  if (moduleDpendees.contains(ourSubSystem))
-                 ```
-                ````
+                ```
         -   닫는 괄호에 다는 주석
             -   중첩이 굉장하고 장황한 함수라면 의미가 있을수도 있으나 우리가 선호하는 작은 함수에는 잡음이다
             -   위와 같이 긴 함수로 인해 달아야겠다는 생각이 들면? 함수를 줄이자
@@ -276,6 +277,8 @@
 ---
 
 ## 5장. 형식 맞추기
+
+코드를 작성하는 규칙.
 
 ### 핵심 요약
 
