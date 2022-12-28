@@ -402,3 +402,160 @@
         -   활성 레코드는 자료구조로 취급한다
             -   비즈니스 규칙을 담으면서 내부 자료를 숨기는 객체는 따로 생성해야 한다
             -   이 때 내부 자료는 활성 레코드의 형태일 가능성이 높음
+
+---
+
+## 7장. 오류 처리
+
+### 핵심 요약
+
+-   깨끗한 코드는 읽기도 좋아야 하지만 안정성도 높아야 한다
+    -   이 둘은 상충되는 목표가 아니다
+-   오류코드보단 예외를
+-   예외 발생 가능한 코드는 `Try-Catch`블록부터 만들기
+-   `unchecked exception`사용하기
+-   wrapper 클래스 적극 활용
+-   특수 사례 패턴
+-   `null` 반환 금지, 인수로 넘기는 것도 금지
+
+### 단락
+
+-   오류 코드보다 예외를 사용하라
+    -   오류 코드를 리턴하게되면 호출자에서 if문으로 분기처리를 하게 되므로 복잡해진다
+    -   예외를 던지는 편이 더 깔끔하고 오류 처리 코드와 뒤섞이지 않게된다
+-   `Try-Catch-Finally` 문부터 작성하라
+    -   예외가 발생할 코드를 짤 때는 `try-catch-finally`문부터 시작해라
+    -   try블록은 트랜잭션과 비슷하다
+    -   catch블록은 프로그램 상태를 일관성 있게 유지해야 한다
+    -   그러면 try 블록에서 무슨 일이 발생하든지 호출자가 기대하는 상태를 정의하기 쉬워진다
+-   `Unchecked Exception`을 사용하라
+    -   이건 논쟁이 끝난 일이다
+    -   `checked exception`은 OCP를 위반한다
+        -   하위 단계에서 코드를 변경하면 상위 단계 메서드 선언부를 전부 고쳐야 한다는 뜻이다
+        -   모듈과 관련된 코드가 전혀 바뀌지 않았어도 선언부가 바뀌었기 때문에 모듈을 다시 빌드해야 한다
+        -   throws 경로에 위치한 모든 함수가 최하위 함수에서 던지는 예외를 알아야 하므로 캡슐화가 깨진다
+-   예외에 의미를 제공하라
+    -   예외를 던질 때는 전후 상황을 충분히 덧붙인다
+        -   호출 스택만으로 파악하기엔 부족하다
+        -   오류 메세지에 실패한 연산 이름과 실패 유형도 언급한다
+        -   애플리케이션이 로깅을 지원하면 catch블록에서 오류를 기록하도록 충분한 정보를 제공한다
+-   호출자를 고려해 예외 클래스를 정의하라
+
+    -   오류를 정의할 때 프로그래머에게 중요한 관심사는 **_오류를 잡아내는 방법_**이다
+    -   오류를 잘 분류하는 방법
+
+        -   ```JAVA
+            // 형편없는 분류
+             ACMEPort port = new ACMEPort(12);
+             try {
+                port.open();
+             } catch (DeviceResponseException e) {
+                reportPortError(e);
+                logger.log("Device response exception",e);
+             } catch (ATM1212UnlockedException e) {
+                reportPortError(e);
+                logger.log("Unlock exception",e);
+             } catch (GMXError e) {
+                reportPortError(e);
+                logger.log("Device response exception",e);
+             } finally {
+                ...
+             }
+
+             // 예외 클래스를 정의하여 리팩토링한 코드
+             LocalPort port = new LocalPort(12);
+             try {
+                port.open();
+             } catch (PortDeviceFailure e) {
+                reportPortError(e);
+                logger.log(e.getMessage(),e);
+             } finally {
+                ...
+             }
+            ```
+
+        -   여기서 LocalPort클래스는 단순히 ACMEPort 클래스가 던지는 예외를 잡아 변환하는 wrapper 클래스일 뿐이다
+        -   ```Java
+            public class LocalPort {
+                private ACMEPort innerPort;
+
+                public LocalPort(int portNumber) {
+                    innerPort = new ACMEPort(portNumber);
+                }
+
+                public void open() {
+                    try {
+                        innerPort.open();
+                    }  catch (DeviceResponseException e) {
+                        throw new PortDeviceFailure(e);
+                    } catch (ATM1212UnlockedException e) {
+                        throw new PortDeviceFailure(e);
+                    } catch (GMXError e) {
+                        throw new PortDeviceFailure(e);
+                    }
+                }
+            }
+            ```
+
+    -   이처럼 감싸기 클래스를 사용하는것은 특히 외부 API를 사용할 때 매우 유용하다
+        -   외부 라이브러리와 프로글매 사이에 의존성이 크게 줄어들게 된다
+        -   나중에 다른 라이브러리로 갈아타는 비용이 적다
+        -   특정 업체가 API를 설계한 방식에 발목 잡히지 않는다
+
+-   정상 흐름을 정의하라
+    -   때로는 오류 발생 시 중단이 적합하지 않은 때도 있다
+    -   ```Java
+        try {
+            MealExpenses expenses = expenseReportDAO.getMeals(emoloyee.getID());
+            m_total += expenses.getTotal();
+        } catch(MealExpensesNotFound e) {
+            m_total += getMealPerDiem();
+        }
+        ```
+    -   위 코드의 비즈니스 로직은 다음과 같다
+        -   식비를 비용으로 청구했을시 청구한 식비를 총계에 더한다
+        -   식비를 비용으로 청구하지 않았다면 일일 기본 식비를 총계에 더한다
+        -   그러나 예외로 인해 코드만 봐서는 위의 논리를 따라가기 어렵다
+    -   특수 상황을 처리할 필요가 없다면 다음과 같이 훨씬 코드가 간결해진다
+        -   ```Java
+            MealExpenses expenses = expenseReportDAO.getMeals(emoloyee.getID());
+            m_total += expenses.getTotal();
+            ```
+        -   ExpenseReportDAO를 고쳐 언제나 `MealExpenses`객체를 반환하도록 하였고, 청구한 식비가 없다면 일일 기본 식비를 반환하는 `MealExpenses`객체를 반환하도록 하였다
+        -   ```Java
+              public class PerDiemMealExpenses implements MealExpenses {
+                  public int getTotal() {
+                      // 기본값으로 일일 기본 식비를 반환한다
+                  }
+              }
+            ```
+        -   이러한 것을 특수 사례 패턴이라 부른다
+            -   클래스를 만들거나 객체를 조작해 특수 사례를 처리하는 방식이다
+            -   클래스나 객체가 예외 상황을 캡슐화해서 처리하므로 클라이언트 코드가 예외를 처리할 필요가 없어진다
+-   `null`을 반환하지 마라
+    -   아주 흔히 저지르는 실수다
+    -   호출자에서 계속 `null`을 체크하는 코드가 생기게 된다
+    -   호출자에게 문제를 넘기는 나쁜 코드다
+    -   누군가 `null` 체크를 빼먹는다면 애플리케이션이 통제 불능에 빠질지도 모른다
+    -   메서드에서 `null`을 반환하고 싶은 충동이 들면 예외를 던지거나 특수 사례 객체를 반환해라
+        -   외부 API가 null을 반환한다면 wrapper 클래스로 처리해라
+    -   다음 코드의 `getEmployees`는 null도 반환한다
+    -   ```Java
+        List<Employee> employees = getEmployees();
+        if (employees != null) {
+            for(Employee e: employees) {
+                totalPay += e.getPay();
+            }
+        }
+        ```
+    -   하지만 `getEmployees`를 변경해 빈 리스트(`Collections.emptyList()`)를 반환한다면 코드가 훨씬 깔끔해진다
+    -   ```Java
+        List<Employee> employees = getEmployees();
+        for(Employee e: employees) {
+            totalPay += e.getPay();
+        }
+        ```
+-   `null`을 전달하지 마라
+    -   반대로 메서드로 `null`을 인수로 전달하는 방식은 더 나쁘다
+    -   인수로 `null`이 들어왔을 때 다른 예외를 던지는 것은 결국 문제를 해결하지 못한다
+    -   그렇다면 애초에 `null`을 넘기지 못하도록 금지하는 정책이 합리적이다
